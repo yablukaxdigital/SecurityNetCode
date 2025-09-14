@@ -1,0 +1,83 @@
+# --- OS cruft
+.DS_Store
+Thumbs.db
+
+# --- IDEs
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+_ReSharper.Caches/
+*.DotSettings.user
+
+# --- Build outputs
+bin/
+obj/
+[Bb]uild/
+out/
+artifacts/
+Debug/
+Release/
+
+# --- Test & coverage
+TestResults/
+*.coverage
+*.coveragexml
+coverage*/
+coverage*.json
+BenchmarkDotNet.Artifacts/
+
+# --- Packages & NuGet
+# (для старых проектов с packages/)
+packages/
+*.nupkg
+*.snupkg
+# локальный кэш nuget не коммитим
+.nuget/packages/
+
+# --- Logs & temp
+*.log
+logs/
+*.pidb
+*.svclog
+*.tmp
+*.temp
+
+# --- User-specific & state
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+*.psess
+*.vsp
+*.vspscc
+*.pdb
+
+# --- Publish profiles (секреты)
+**/Properties/PublishProfiles/*.pubxml.user
+*.pubxml.user
+
+# --- Configs & secrets
+# общие .env (оставь .env.example в репо)
+.env
+.env.*
+!.env.example
+
+# ASP.NET Core локальные конфиги/секреты
+appsettings.*.local.json
+appsettings.Local.json
+secrets.json
+local.settings.json        # Azure Functions
+
+# --- EF / tools
+*.jfm
+
+# --- Frontend inside .NET solutions
+node_modules/
+dist/
+wwwroot/node_modules/
+wwwroot/dist/
+
+# --- Rider/JetBrains extra
+*.iml
