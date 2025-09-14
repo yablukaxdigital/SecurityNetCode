@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login / Sign Up</title>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+  <main id="main-holder">
+    <a href="/logout" id="logout" class="link">Logout</a>
+
+    <div id="auth-panels">
+      <div id="auth-tabs">
+        <button id="tab-login" class="tab active" type="button">Login</button>
+        <button id="tab-signup" class="tab" type="button">Sign up</button>
+      </div>
+
+      <section id="login-panel" class="panel active">
+        <h1 id="login-header">Login</h1>
+        <div class="msg" id="login-error">Invalid username or password</div>
+        <form id="login-form" action="/api/login" method="post">
+          <input type="text" name="login" id="login-username" class="login-form-field" placeholder="Email or username" autocomplete="username">
+          <input type="password" name="password" id="login-password" class="login-form-field" placeholder="Password" autocomplete="current-password">
+          <input type="submit" value="Login" id="login-submit">
+        </form>
+      </section>
+
+      <section id="signup-panel" class="panel">
+        <h1>Sign up</h1>
+        <div class="msg" id="signup-error"></div>
+        <div class="msg success" id="signup-success"></div>
+        <form id="signup-form" action="/api/signup" method="post">
+          <input type="email" name="email" id="signup-email" class="login-form-field" placeholder="Email" autocomplete="email" required>
+          <input type="text" name="username" id="signup-username" class="login-form-field" placeholder="Username (optional)" autocomplete="username">
+          <input type="password" name="password" id="signup-password" class="login-form-field" placeholder="Password" autocomplete="new-password" required>
+          <input type="password" id="signup-password2" class="login-form-field" placeholder="Repeat password" autocomplete="new-password" required>
+          <label class="row"><input type="checkbox" id="signup-autologin" checked> Login automatically</label>
+          <input type="submit" value="Create account" id="signup-submit">
+        </form>
+      </section>
+    </div>
+  </main>
+</body>
+
+<style>
+  :root { --bg:#3a3a3a; --fg:#222; --card:#fff; --danger:#8a0000; --danger-bg:#e58f8f; --ok:#0a7a2a; --ok-bg:#b7f5c7; }
+  html, body { height:100%; }
+  body {
+    margin:0; font-family:Arial, Helvetica, sans-serif;
+    display:grid; justify-items:center; align-items:center; background:var(--bg);
+  }
+  .link { opacity:0; text-decoration:none; }
+  #main-holder {
+    width:min(680px, 92vw); min-height:70vh; display:grid; gap:16px; justify-items:center; align-items:start;
+    background:var(--card); border-radius:10px; box-shadow:0 0 5px 2px rgba(0,0,0,.5); padding:24px 18px;
+  }
+  #auth-tabs { display:flex; gap:8px; align-self:stretch; }
+  .tab {
+    flex:1; padding:10px; border-radius:8px; border:1px solid #ddd; background:#f4f4f4; cursor:pointer; font-weight:700;
+  }
+  .tab.active { background:#e9e9e9; }
+  .panel { display:none; width:100%; }
+  .panel.active { display:block; }
+  .msg {
+    display:none; margin:0 0 10px; padding:8px 10px; border-radius:6px; border:1px solid var(--danger); background:var(--danger-bg); color:var(--danger);
+    font-size:13px; font-weight:700;
+  }
+  .msg.success {
+    display:none; border-color:var(--ok); background:var(--ok-bg); color:var(--ok);
+  }
+  .login-form-field::placeholder { color:#3a3a3a; }
+  .login-form-field {
+    border:none; border-bottom:1px solid #3a3a3a; margin-bottom:12px; border-radius:3px;
+    outline:none; padding:0 0 6px 6px; width:100%;
+  }
+  #login-submit, #signup-submit {
+    width:100%; padding:10px; border:none; border-radius:8px; color:white;
+    font-weight:bold; background:#3a3a3a; cursor:pointer; outline:none; margin-top:6px;
+  }
+  .row { display:flex; align-items:center; gap:8px; font-size:14px; margin:6px 0 4px; }
+</style>
+
+<script>
+  // Session from previous login
+  const savedSession = sessionStorage.getItem('session');
+  let sessionToken;
+  try { sessionToken = JSON.parse(savedSession).token; } catch(e) {}
+
+  // Elements
+  const logoutLink     = document.getElementById("logout");
+  const mainHolder     = document.getElementById("main-holder");
+
+  const tabLogin       = document.getElementById("tab-login");
+  const tabSignup      = document.getElementById("tab-signup");
+  const loginPanel     = document.getElementById("login-panel");
+  const signupPanel    = document.getElementById("signup-panel");
+
+  const loginForm      = document.getElementById("login-form");
+  const loginError     = document.getElementById("login-error");
+  const loginSubmit    = document.getElementById("login-submit");
+  const loginUser      = document.getElementById("login-username");
+  const loginPass      = document.getElementById("login-password");
+
+  const signupForm     = document.getElementById("signup-form");
+  const signupEmail    = document.getElementById("signup-email");
+  const signupUser     = document.getElementById("signup-username");
+  const signupPass1    = document.getElementById("signup-password");
+  const signupPass2    = document.getElementById("signup-password2");
+  const signupAuto     = document.getElementById("signup-autologin");
+  const signupSubmit   = document.getElementById("signup-submit");
+  const signupError    = document.getElementById("signup-error");
+  const signupSuccess  = document.getElementById("signup-success");
+
+  // Tabs
+  function setTab(which) {
+    const isLogin = which === 'login';
+    tabLogin.classList.toggle('active', isLogin);
+    tabSignup.classList.toggle('active', !isLogin);
+    loginPanel.classList.toggle('active', isLogin);
+    signupPanel.classList.toggle('active', !isLogin);
+  }
+  tabLogin.addEventListener('click', () => setTab('login'));
+  tabSignup.addEventListener('click', () => setTab('signup'));
+
+  // UI after auth
+  async function refreshUI() {
+    if (!sessionToken) return;
+    try {
+      const { data } = await axios.get('/me', { headers: { Authorization: `Bearer ${sessionToken}` } });
+      const { username } = data;
+      document.getElementById('auth-panels').remove();
+      const hello = document.createElement('div');
+      hello.textContent = `Hello ${username}`;
+      hello.style.fontWeight = 'bold';
+      hello.style.fontSize = '20px';
+      mainHolder.append(hello);
+      logoutLink.style.opacity = 1;
+    } catch (e) {
+      sessionStorage.removeItem('session');
+      sessionToken = null;
+    }
+  }
+  refreshUI();
+
+  // Logout
+  logoutLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    sessionStorage.removeItem('session');
+    location.assign('/logout');
+  });
+
+  // Login submit
+  loginSubmit.addEventListener("click", async (e) => {
+    e.preventDefault();
+    loginError.style.display = 'none';
+    try {
+      const { data } = await axios.post('/api/login', { login: loginUser.value.trim(), password: loginPass.value });
+      sessionStorage.setItem('session', JSON.stringify(data));
+      sessionToken = data.token;
+      location.reload();
+    } catch (e) {
+      loginError.style.display = 'block';
+      loginError.textContent = 'Invalid username or password';
+    }
+  });
+
+  // Sign up submit
+  signupSubmit.addEventListener("click", async (e) => {
+    e.preventDefault();
+    signupError.style.display = 'none';
+    signupSuccess.style.display = 'none';
+
+    const email = signupEmail.value.trim();
+    const password = signupPass1.value;
+    const password2 = signupPass2.value;
+    const username = signupUser.value.trim() || undefined;
+
+    if (!email || !password) {
+      signupError.style.display = 'block';
+      signupError.textContent = 'Email and password are required';
+      return;
+    }
+    if (password !== password2) {
+      signupError.style.display = 'block';
+      signupError.textContent = 'Passwords do not match';
+      return;
+    }
+
+    try {
+      const { data } = await axios.post('/api/signup', { email, password, username });
+      signupSuccess.style.display = 'block';
+      signupSuccess.textContent = `User created: ${data.email}.`;
+
+      if (signupAuto.checked) {
+        const { data: loginRes } = await axios.post('/api/login', { login: email, password });
+        sessionStorage.setItem('session', JSON.stringify(loginRes));
+        sessionToken = loginRes.token;
+        location.reload();
+      } else {
+        setTab('login');
+        loginUser.value = email;
+        loginPass.value = password;
+      }
+    } catch (e) {
+      signupError.style.display = 'block';
+      let msg = 'Signup failed';
+      try {
+        const api = e.response && e.response.data;
+        if (api && api.details && api.details.message) msg = api.details.message;
+        else if (api && api.error) msg = String(api.error);
+      } catch(_) {}
+      signupError.textContent = msg;
+    }
+  });
+</script>
+</html>

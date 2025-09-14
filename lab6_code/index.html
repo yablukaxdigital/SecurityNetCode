@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lab 4 — SSO (Auth0)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background:#111; color:#eee; }
+    .wrap { max-width: 760px; margin: 48px auto; padding: 24px; background:#1c1c1c; border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+    h1 { margin-top: 0; }
+    button, a.btn { display:inline-block; padding:10px 16px; border:none; border-radius:10px; background:#3a86ff; color:#fff; text-decoration:none; cursor:pointer; font-weight:600; }
+    button.secondary { background:#444; }
+    pre { background:#0d0d0d; color:#e5e5e5; padding:12px; border-radius:12px; overflow:auto; }
+    .row { display:flex; gap:12px; flex-wrap: wrap; }
+    .tag { background:#222; border:1px solid #333; border-radius: 999px; padding:4px 10px; font-size:12px; }
+    .ok { color:#6ee7b7; }
+    .bad { color:#f87171; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Lab 4 → SSO with Auth0</h1>
+    <p>
+      Demo змінює "локальний логін" на стандартну SSO-сторінку Auth0 і обробляє редірект із кодом (Authorization Code Flow).
+    </p>
+
+    <div id="auth-block">
+      <div id="auth-actions" class="row"></div>
+      <div id="auth-state"></div>
+    </div>
+
+    <h2>Тестові кнопки</h2>
+    <div class="row">
+      <button id="call-protected">GET /api/protected</button>
+      <button id="refresh" class="secondary">POST /api/refresh</button>
+    </div>
+    <pre id="out">—</pre>
+
+    <h2>Очікувані параметри /authorize</h2>
+    <div class="row">
+      <span class="tag">client_id</span>
+      <span class="tag">redirect_uri</span>
+      <span class="tag">response_type=code</span>
+      <span class="tag">response_mode=query</span>
+      <span class="tag">scope=openid profile email offline_access</span>
+      <span class="tag">state + nonce</span>
+    </div>
+  </div>
+
+  <script>
+    async function loadSession() {
+      const r = await fetch('/session');
+      const j = await r.json();
+      const $actions = document.getElementById('auth-actions');
+      const $state = document.getElementById('auth-state');
+      $actions.innerHTML = '';
+      if (j.authenticated) {
+        $state.innerHTML = `<p class="ok">Ви увійшли як <b>${j.user.name || j.user.email}</b></p>`;
+        const btnLogout = document.createElement('a');
+        btnLogout.className = 'btn secondary';
+        btnLogout.href = '/logout';
+        btnLogout.innerText = 'Logout (Auth0)';
+        $actions.appendChild(btnLogout);
+      } else {
+        $state.innerHTML = `<p class="bad">Ви не авторизовані</p>`;
+        const btnLogin = document.createElement('a');
+        btnLogin.className = 'btn';
+        btnLogin.href = '/login';
+        btnLogin.innerText = 'Login with SSO';
+        $actions.appendChild(btnLogin);
+      }
+    }
+
+    async function callProtected() {
+      const r = await fetch('/api/protected');
+      const $out = document.getElementById('out');
+      if (r.ok) {
+        const j = await r.json();
+        $out.textContent = JSON.stringify(j, null, 2);
+      } else {
+        $out.textContent = `HTTP ${r.status}: ${await r.text()}`;
+      }
+    }
+
+    async function refreshToken() {
+      const r = await fetch('/api/refresh', { method: 'POST' });
+      const $out = document.getElementById('out');
+      if (r.ok) {
+        const j = await r.json();
+        $out.textContent = JSON.stringify(j, null, 2);
+      } else {
+        $out.textContent = `HTTP ${r.status}: ${await r.text()}`;
+      }
+    }
+
+    document.getElementById('call-protected').addEventListener('click', callProtected);
+    document.getElementById('refresh').addEventListener('click', refreshToken);
+    loadSession();
+  </script>
+</body>
+</html>
